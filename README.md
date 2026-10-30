@@ -60,32 +60,6 @@ To restore the database to its pristine demo state at any time:
 npm run demo:reset
 ```
 
----
-
-## 📽️ Demo Video
-- **YouTube Link**: `https://youtu.be/PLACEHOLDER_VIDEO_LINK` *(Recording under 3 minutes, 1080p, public)*
-
----
-
-## 📸 Screenshots
-```
-+---------------------------------------------------------------------------------+
-|                                 [ SCREENSHOT 1 ]                                |
-|        Public Campaign Hero, Milestone Escrow Progress & PayPal Button           |
-+---------------------------------------------------------------------------------+
-|                                 [ SCREENSHOT 2 ]                                |
-|           Volunteer Mobile Workspace with Camera Upload & Proof Checklist        |
-+---------------------------------------------------------------------------------+
-|                                 [ SCREENSHOT 3 ]                                |
-|        "Why was this verified?" AI Forensic Drawer & Tamper Evidence Report     |
-+---------------------------------------------------------------------------------+
-|                                 [ SCREENSHOT 4 ]                                |
-|         Double-Entry Ledger Page with Running Balance & CSV Export              |
-+---------------------------------------------------------------------------------+
-```
-*(Drop screenshots in `./docs/screenshots/` or view live at `http://localhost:3000`)*
-
----
 
 ## Project Status: What Works, What Doesn't, and Why
 
