@@ -1,0 +1,245 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      String   @default("DONOR") // COORDINATOR, VOLUNTEER, DONOR
+  phone     String?
+  avatarUrl String?
+  paypalEmail String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  coordinatedCampaigns Campaign[]    @relation("CoordinatedCampaigns")
+  assignedMilestones   Milestone[]   @relation("AssignedMilestones")
+  donations            Donation[]
+  submittedMedia       MediaFile[]
+  auditLogs            AuditLog[]
+  payouts              Payout[]
+}
+
+model Campaign {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  title         String
+  description   String
+  location      String
+  status        String   @default("ACTIVE") // ACTIVE, COMPLETED, PAUSED
+  targetAmount  Int      // in smallest unit: poisha (1 BDT = 100 poisha)
+  currency      String   @default("BDT")
+  coordinatorId String
+  coordinator   User     @relation("CoordinatedCampaigns", fields: [coordinatorId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  milestones    Milestone[]
+  donations     Donation[]
+  ledgerEntries LedgerEntry[]
+  auditLogs     AuditLog[]
+  mediaFiles    MediaFile[]
+  payouts       Payout[]
+}
+
+model Milestone {
+  id                  String    @id @default(cuid())
+  campaignId          String
+  campaign            Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  title               String
+  description         String
+  order               Int       @default(1)
+  targetAmount        Int       // in smallest unit: poisha
+  status              String    @default("PENDING") // PENDING, RESERVED, VERIFIED, RELEASED
+  proofChecklist      String    // JSON serialized array of checklist items
+  assignedVolunteerId String?
+  assignedVolunteer   User?     @relation("AssignedMilestones", fields: [assignedVolunteerId], references: [id], onDelete: SetNull)
+  verifiedAt          DateTime?
+  releasedAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  mediaFiles    MediaFile[]
+  ledgerEntries LedgerEntry[]
+  certificates  Certificate[]
+  auditLogs     AuditLog[]
+  verifications Verification[]
+  payout        Payout?
+}
+
+model Payout {
+  id             String    @id @default(cuid())
+  milestoneId    String    @unique
+  milestone      Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  campaignId     String
+  campaign       Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  volunteerId    String?
+  volunteer      User?     @relation(fields: [volunteerId], references: [id], onDelete: SetNull)
+  recipientEmail String
+  amountPoisha   Int       // in smallest unit: poisha
+  amountUsdCents Int       // in USD cents
+  currency       String    @default("BDT")
+  batchId        String    // PayPal payout batch_id (or mock batch id)
+  payoutItemId   String?   // PayPal payout_item_id
+  senderBatchId  String    @unique
+  senderItemId   String    @unique
+  status         String    @default("PENDING") // PENDING, SUCCESS, FAILED, UNCLAIMED, RETURNED
+  errorDetails   String?   // serialized error if failed
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Verification {
+  id               String     @id @default(cuid())
+  milestoneId      String
+  milestone        Milestone  @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  provider         String     // "mock" | "gemini" | "anthropic"
+  verdict          String     // "approved" | "needs_more_proof" | "rejected"
+  confidence       Float      // 0..1
+  receiptTotal     Int?       // in smallest unit: poisha
+  receiptCurrency  String?
+  receiptDate      String?
+  checklist        String     // JSON serialized [{ item, satisfied, evidence }]
+  redFlags         String     // JSON serialized string[]
+  humanSummary     String
+  needsHumanReview Boolean    @default(false)
+  isDemoMode       Boolean    @default(false)
+  rawModelOutput   String?
+  overriddenBy     String?
+  overrideReason   String?
+  overrideVerdict  String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+}
+
+model Donation {
+  id             String        @id @default(cuid())
+  campaignId     String
+  campaign       Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  donorId        String?
+  donor          User?         @relation(fields: [donorId], references: [id], onDelete: SetNull)
+  donorName      String
+  donorEmail     String?
+  amount         Int           // in smallest unit: poisha
+  currency       String        @default("BDT")
+  amountUsdCents Int?          // PayPal Sandbox conversion (1 USD = 120 BDT)
+  status         String        @default("COMPLETED") // COMPLETED, REFUNDED, PARTIALLY_REFUNDED, PENDING
+  idempotencyKey String        @unique
+  paypalOrderId  String?       @unique
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  ledgerEntries LedgerEntry[]
+  auditLogs     AuditLog[]
+}
+
+model LedgerEntry {
+  id             String     @id @default(cuid())
+  campaignId     String
+  campaign       Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  milestoneId    String?
+  milestone      Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  donationId     String?
+  donation       Donation?  @relation(fields: [donationId], references: [id], onDelete: SetNull)
+  type           String     // CREDIT_DONATION, RESERVE_MILESTONE, RELEASE_PAYMENT, REFUND
+  amount         Int        // in smallest unit: poisha (always positive)
+  currency       String     @default("BDT")
+  idempotencyKey String     @unique
+  description    String?
+  createdAt      DateTime   @default(now())
+}
+
+model VerificationCase {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  status      String        @default("PENDING") // PENDING, PROCESSING, VERIFIED, SUSPICIOUS, TAMPERED
+  trustScore  Float         @default(0.0)
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  files        MediaFile[]
+  certificates Certificate[]
+  auditLogs    AuditLog[]
+  transactions Transaction[]
+}
+
+model MediaFile {
+  id          String            @id @default(cuid())
+  caseId      String?
+  case        VerificationCase? @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  campaignId  String?
+  campaign    Campaign?         @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  milestoneId String?
+  milestone   Milestone?        @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  uploaderId  String?
+  uploader    User?             @relation(fields: [uploaderId], references: [id], onDelete: SetNull)
+  filename    String
+  mimeType    String
+  sizeBytes      Int
+  sha256Hash     String
+  perceptualHash String?
+  storagePath    String?
+  isReceipt   Boolean           @default(false)
+  caption     String?
+  exifData    String?           // JSON serialized EXIF/IPTC/XMP payload
+  hasGps      Boolean           @default(false)
+  latitude    Float?
+  longitude   Float?
+  cameraModel String?
+  software    String?
+  captureDate DateTime?
+  tamperScore Float             @default(0.0) // 0.0 (clean) to 1.0 (heavily tampered)
+  aiSummary   String?
+  createdAt   DateTime          @default(now())
+}
+
+model Certificate {
+  id              String            @id @default(cuid())
+  caseId          String?
+  case            VerificationCase? @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  milestoneId     String?
+  milestone       Milestone?        @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  certificateCode String            @unique // e.g. "SKH-YYYYMMDD-XXXX"
+  signatureHash   String
+  issuer          String            @default("Sakkhi Witness Authority")
+  isRevoked       Boolean           @default(false)
+  issuedAt        DateTime          @default(now())
+}
+
+model AuditLog {
+  id          String            @id @default(cuid())
+  caseId      String?
+  case        VerificationCase? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  campaignId  String?
+  campaign    Campaign?         @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  milestoneId String?
+  milestone   Milestone?        @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  donationId  String?
+  donation    Donation?         @relation(fields: [donationId], references: [id], onDelete: SetNull)
+  actorId     String?
+  user        User?             @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action      String            // DONATION_RECORDED, FUNDS_RESERVED, FUNDS_RELEASED, REFUND_ISSUED, etc.
+  actor       String            @default("system")
+  details     String?           // JSON serialized event metadata
+  timestamp   DateTime          @default(now())
+}
+
+model Transaction {
+  id            String            @id @default(cuid())
+  paypalOrderId String?           @unique
+  caseId        String?
+  case          VerificationCase? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  amount        Float
+  currency      String            @default("USD")
+  status        String            @default("CREATED") // CREATED, COMPLETED, FAILED, REFUNDED
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}

@@ -1,0 +1,176 @@
+# SakkhiAI Project Implementation Tasks
+
+## Phase 1: Project Setup & Scaffolding
+- [x] Initialize Next.js 14 App Router + TypeScript + Tailwind in project root
+- [x] Install dependencies: `prisma`, `@prisma/client`, `zod`, `vitest`, `@vitest/coverage-v8`, `clsx`, `nanoid`, `sharp`, `exifr`
+- [x] Configure `package.json` npm scripts: `dev`, `build`, `start`, `test`, `db:push`, `db:seed`, `lint`
+- [x] Establish directory structure matching `docs/ARCHITECTURE.md`
+- [x] Configure Prisma with SQLite and build `prisma/schema.prisma` from `docs/DATA_MODEL.md`
+- [x] Execute initial database push (`npm run db:push`)
+- [x] Implement `lib/env.ts` with strict Zod parsing and conditional fallback for mock/demo mode
+- [x] Implement `GET /api/health` endpoint with status, database ping, and safe integration booleans
+- [x] Verify `/api/health` via running development server
+
+## Phase 2: Design System & Core UI Components
+- [x] Document design system specification in `docs/DESIGN_SYSTEM.md`
+- [x] Load Google fonts (`Literata`, `Source Sans 3`, `Hind Siliguri`) via `next/font/google` with CSS variables
+- [x] Configure Tailwind tokens: paper, ink, terracotta, forest, and border palettes
+- [x] Build UI components in `components/ui/`:
+  - [x] `Button` (primary terracotta, secondary outlined, quiet text; 44px min touch target)
+  - [x] `Card` (soft paper card with delicate border)
+  - [x] `Badge` (pill with neutral/terracotta/forest/amber variants)
+  - [x] `VerifiedBadge` (forest green pill with organic hand-drawn check mark SVG)
+  - [x] `AmountInput` (formats BDT and USD with large readable digits)
+  - [x] `ProgressBar` (rounded with amounts written in words, e.g. "9,200 of 12,000 BDT")
+  - [x] `EmptyState` (friendly human sentence, no sad icons)
+  - [x] `ReceiptCard` (1-degree rotated paper voucher with dotted tear line)
+  - [x] `HandUnderline` (organic hand-drawn SVG stroke)
+  - [x] `Skeleton` (warm beige pulsing placeholder)
+- [x] Build responsive App Shell:
+  - [x] `Header` with Literata "Sakkhi" wordmark & "every taka, witnessed" subtitle
+  - [x] `Footer` with honest hackathon prototype notice
+- [x] Create dev-only `/design` showcase page exhibiting all components, colors, and type scale
+- [x] Add unit test suite in `tests/components.test.tsx` (9 passing tests)
+- [x] Verify layout responsiveness at 375px and 1280px widths
+
+## Phase 3: Core Forensic Engine, Data Model & Double-Entry Ledger
+- [x] Implement `lib/db.ts` Prisma singleton instance
+- [x] Finalize `prisma/schema.prisma` from `docs/DATA_MODEL.md` (integer poisha storage, SQLite compatibility) and apply via `npm run db:push`
+- [x] Configure currency rules ($1\text{ USD} = 120\text{ BDT}$, smallest unit poisha) in `lib/config.ts` and document in `docs/ARCHITECTURE.md`
+- [x] Implement double-entry accounting engine in `lib/ledger.ts`:
+  - [x] `computeCampaignBalance` (live balance: total donated, refunded, reserved, released, available)
+  - [x] `recordDonation` (transactional credit, unique idempotency keys, PayPal order linkage, audit log)
+  - [x] `reserveFunds` (locks milestone allocation, double-spend check)
+  - [x] `releaseFunds` (disburses verified milestone funds, releases reserve)
+  - [x] `refundDonation` (partial/full refunds, available balance and max refundable guards)
+- [x] Implement realistic demo seed in `prisma/seed.ts`:
+  - [x] 1 coordinator (Nusrat Jahan), 3 volunteers (Rahim Uddin, Salma Khatun, Tanvir Hasan), 4 donors
+  - [x] 2 realistic campaigns ("Flood relief, Kurigram", "School kits for Khulna slum children") with 3 milestones each and proof checklists
+  - [x] 1 milestone fully verified and paid with a Sharp-generated demo receipt image (`public/demo/receipt-kurigram-fuel.jpg`)
+  - [x] Seeded donations and double-entry ledger entries for Kurigram and Khulna campaigns
+- [x] Implement `lib/forensics.ts` (EXIF extraction via `exifr`, image hashing and metrics via `sharp`)
+- [x] Implement `lib/ai/` provider adapters with deterministic `mock.ts` fallback
+- [x] Comprehensive Vitest test suites:
+  - [x] `tests/env.test.ts`
+  - [x] `tests/forensics.test.ts`
+  - [x] `tests/components.test.tsx`
+  - [x] `tests/ledger.test.ts` (double-spend prevention, idempotent retries, refund math, non-negative balance enforcement - 20/20 tests passing)
+
+## Phase 4: Public Server Component Pages & User Experience
+- [x] Home page `/` with real Prisma data:
+  - [x] Warm hero headline in Literata: "See where every taka goes." with `HandUnderline`
+  - [x] Honest 3-step explanation: Give, Prove, Release
+  - [x] Active campaign cards with `ProgressBar` (raised vs target, milestone count, coordinator)
+  - [x] "Recently Verified" strip displaying the latest approved milestones with receipt previews
+- [x] Dynamic Campaign page `/campaigns/[id]` (supports slug or CUID):
+  - [x] Campaign story, location, and coordinator profile
+  - [x] Financial summary card with live breakdown (Disbursed, Earmarked, Available)
+  - [x] Vertical `MilestoneTimeline` showing waiting, reserved, and verified & paid milestones
+  - [x] Paid milestones showcase `ReceiptCard`, `ProofGallery`, AI plain-language notes, and payout references
+  - [x] Interactive `DonationPanel` (desktop card + mobile sticky bottom bar with presets and custom amount)
+- [x] `/how-it-works` Trust Model page:
+  - [x] Long-form explanation of milestone escrow and cryptographic witness signatures
+  - [x] Transparent breakdown of what AI can verify (ELA, clone stamping, duplicate hashes, EXIF) vs cannot verify (cash kickbacks, material quality)
+- [x] Skeleton loading states (`app/loading.tsx` and `app/campaigns/[id]/loading.tsx`)
+- [x] Human-centered 404 page (`app/not-found.tsx`)
+- [x] Open Graph and Twitter metadata across all routes
+- [x] Responsive layout verification for 375px mobile and 1280px desktop with zero horizontal scroll (`tests/responsive.test.tsx`)
+
+## Phase 5: PayPal Sandbox Integration & Milestone Checkout Pipeline
+- [x] Implement `lib/paypal/client.ts`:
+  - [x] OAuth2 access token fetch & in-memory caching with 120s buffer
+  - [x] Authenticated request wrapper with 10s AbortController timeout
+  - [x] Automatic exponential retries for 5xx server errors only
+  - [x] Custom error classes (`PayPalApiError`, `PayPalAuthError`, `PayPalTimeoutError`)
+  - [x] Zero-secret logging & `PayPal-Request-Id` idempotency headers
+- [x] Implement `POST /api/donations/create-order`:
+  - [x] Strict Zod validation (`campaignId`, `amount`, `donorName`, `donorEmail`, `message`, `giveAnonymously`)
+  - [x] Fixed rate conversion (1 USD = 120 BDT)
+  - [x] Creates PayPal Order (intent `CAPTURE`) and stores `PENDING` Donation record
+- [x] Implement `POST /api/donations/capture-order`:
+  - [x] Server-side payment capture via PayPal REST API
+  - [x] Strict anti-tamper verification (matches captured USD cents and currency code against stored order)
+  - [x] Atomically marks donation `COMPLETED` and creates double-entry `CREDIT_DONATION` ledger entry
+  - [x] Returns itemized receipt summary with certificate code
+- [x] Client PayPal Buttons integration in `DonationPanel.tsx`:
+  - [x] Official `@paypal/react-paypal-js` integration
+  - [x] Clear success state: *"Thank you, Hasan. Your 500 BDT is now waiting for the next milestone."*
+  - [x] Gentle, informative error notices without charging cards
+- [x] Implement `POST /api/webhooks/paypal`:
+  - [x] Cryptographic webhook signature verification via PayPal API
+  - [x] Idempotent processing of `PAYMENT.CAPTURE.COMPLETED` and `PAYMENT.CAPTURE.REFUNDED`
+- [x] Unit test suite in `tests/paypal.test.ts`:
+  - [x] BDT Poisha and USD Cents conversion math
+  - [x] Server-side capture verification logic (tamper rejection, currency mismatch, status validation)
+- [x] Comprehensive documentation in `docs/API.md`, `docs/SECURITY_AND_EDGE_CASES.md`, and `README.md` Setup guide
+
+## Phase 6: Media Forensics & AI Verifier Pipeline
+- [x] Implement `lib/ai/` AI Verifier Subsystem:
+  - [x] `lib/ai/types.ts`: Strict Zod input/output schemas (`VerificationResultSchema`, `VerificationInput`, `Verifier` interface)
+  - [x] `lib/ai/verifier.ts`: Factory selecting `mock`, `gemini`, or `anthropic` providers with 60s timeout, exponential backoff retries, and safe failure state
+  - [x] `lib/ai/mock.ts`: Deterministic mock verifier for hackathon testing without API keys, labeled as "Demo Mode" in UI
+  - [x] `lib/ai/prompts.ts`: Impartial auditor instructions, prompt injection defenses (untrusted image/note text), and 2 worked examples
+  - [x] `lib/ai/deterministic.ts`: Code-level rules enforced before and after model (10% amount variance, confidence < 0.75 downgrade, duplicate hash rejection, pre-dated EXIF flags)
+- [x] Database Schema & Endpoints:
+  - [x] `prisma/schema.prisma`: Added `Verification` model with raw model output retention for auditing
+  - [x] `POST /api/verifications` and `POST /api/verify`: Executes verification on milestone proof, writes `Verification` row and `AuditLog`, advances milestone state
+  - [x] `POST /api/admin/verifications/override`: Coordinator review override for flagged items with reason logged in `AuditLog`
+- [x] UI Showcase:
+  - [x] Public Milestone Timeline (`/campaigns/[id]`): Displays latest verification finding, plain human summary, checklist evidence table, and demo mode badges
+  - [x] Volunteer Field Workspace (`/volunteer/[token]`): Real-time audit feedback, human summary, checklist status, and additional proof uploads
+  - [x] Admin Portal (`/admin`): Coordinator Human Review Queue with override modal and reasoning capture
+- [x] Unit Test Suite in `tests/verifier.test.ts`:
+  - [x] Mock provider verdict paths (`approved`, `needs_more_proof`, `rejected`)
+  - [x] 10% amount mismatch rule
+  - [x] Low-confidence (< 0.75) downgrade rule
+  - [x] Prompt injection fixture proof
+  - [x] Provider timeout and safe failure state (55 total passing tests across 8 test suites)
+
+## Phase 7: Milestone Payouts via PayPal Payouts API & Cryptographic Certificates
+- [x] Implement `lib/paypal/payouts.ts`:
+  - [x] Single-item batch payout to volunteer's PayPal email with `sender_batch_id` and `sender_item_id` idempotency keys derived from milestone ID
+  - [x] Conversion of milestone amount to USD cents via configured rate ($1\text{ USD} = 120\text{ BDT}$)
+  - [x] Note format: `"Sakkhi: <milestone title>"`
+  - [x] Mock/demo mode deterministic fallback for tests without live credentials
+- [x] Strict Transactional Release Rules (`executeMilestonePayout`):
+  - [x] Milestone status must be approved (`VERIFIED` or approved verification)
+  - [x] Campaign must have sufficient unreserved balance
+  - [x] Prohibits duplicate payouts for the same milestone
+  - [x] Flagged cases require explicit coordinator approval
+  - [x] Atomically creates `Payout` record, writes `RELEASE_PAYMENT` ledger entry, updates milestone to `RELEASED`, and writes `AuditLog`
+- [x] Payout Endpoints & Automation:
+  - [x] `POST /api/payouts/[milestoneId]`: Performs payout disbursement with authorization checks
+  - [x] Automated payout flow: triggers upon unflagged verification approval with $\ge 75\%$ confidence
+  - [x] Coordinator manual release button in `/admin` for flagged or approved milestones
+  - [x] Payout lifecycle webhook handling (`PAYMENT.PAYOUTS-ITEM.SUCCEEDED`, `FAILED`, `RETURNED`, `UNCLAIMED`)
+  - [x] Reversal handling on failure: creates `DISBURSEMENT_REVERSAL` ledger entry, restores campaign balance, and flags milestone back to `needs_more_proof`
+- [x] Cryptographic Witness Certificates (`/certificates/[code]`):
+  - [x] Automatic certificate generation upon milestone disbursement with SHA-256 signature hash
+  - [x] Dedicated certificate verification page with print/PDF styling, QR/hash verification badge, and official Sakkhi Witness seal
+  - [x] Deep links from homepage and campaign milestone cards directly to the official certificate
+- [x] Comprehensive Vitest test suite in `tests/payouts.test.ts`:
+  - [x] Success path (batch creation, ledger entry, milestone state)
+  - [x] Insufficient campaign balance prevention
+  - [x] Double-release prevention
+  - [x] Flagged case coordinator authorization guard
+  - [x] Failed payout reversal restoring available balance (60/60 passing tests across 9 test files)
+
+## Phase 8: Comprehensive Security & Edge Cases Hardening
+- [x] Security Audit Report published in `docs/SECURITY_AUDIT.md` verifying every item in `docs/SECURITY_AND_EDGE_CASES.md`
+- [x] Strict Zod input validation on every route (`/api/donations/*`, `/api/proofs`, `/api/verifications`, `/api/payouts/*`, `/api/admin/*`, `/api/webhooks/paypal`)
+- [x] In-memory sliding-window rate limiting (`lib/rateLimit.ts`) on upload and donation endpoints (HTTP 429 + Retry-After)
+- [x] Binary magic bytes sniffing (`lib/forensics.ts:sniffImageMimeType`) for JPEG, PNG, and WebP, rejecting extension spoofing
+- [x] Upload path traversal defense (strict server filename generation, magic-byte extension whitelist, destination root containment)
+- [x] Secrets isolation ensuring server credentials never reach client bundles
+- [x] CSRF protection for state-changing routes (`lib/csrf.ts:verifyCsrfOrigin`)
+- [x] Safe error handling stripping raw database internals and credentials across all API catch blocks
+- [x] PayPal webhook signature validation (`verifyPayPalWebhookSignature`) using official cert URL and transmission headers
+- [x] Idempotency on payouts and secure admin cookie flags (`httpOnly`, `sameSite: "lax"`, `secure` in production)
+- [x] Edge Cases Added:
+  - [x] Cross-milestone duplicate photo reuse blocked by SHA-256 and perceptual dHash ($\le 5$ bits)
+  - [x] Bangla script & numerals parsing in verifier prompt and mock engine (`১২,০০০ টাকা` -> 12,000 BDT)
+  - [x] Blurry photo detection via Laplacian edge variance, downgrading to `needs_more_proof` with human review
+  - [x] Large image token optimization resizing images $> 1568$px with `sharp`
+  - [x] Permanent milestone rejection with proportional donor refunds (`refundMilestoneDonorsProportionally`)
+  - [x] PayPal API outage tolerance (`QUEUED_RETRY` status, `PAYOUT_QUEUED` milestone state, and `retryQueuedPayouts()`)
+- [x] Comprehensive test suite in `tests/security_edge_cases.test.ts` (78/78 tests passing across 10 test suites; 0 ESLint warnings/errors; Next.js 14 production build clean)
